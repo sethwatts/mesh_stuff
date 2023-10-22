@@ -75,7 +75,7 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
     }
   }
 
-  outfile << "$EndElements\n";
+  outfile << "\n$EndElements\n";
 
   outfile.close();
 
@@ -95,14 +95,14 @@ static bool export_gmsh_v22_ascii(const io::Mesh & mesh, std::string filename) {
   const int datasize = 8;
   const int one = 1;
   outfile << "$MeshFormat\n";
-  outfile << version << " " << filetype << " " << datasize << std::endl;
+  outfile << version << " " << filetype << " " << datasize << '\n';
   outfile << "$EndMeshFormat\n";
 
   /////////////////
   // write nodes //
   /////////////////
   outfile << "$Nodes\n";
-  outfile << mesh.nodes.size() << std::endl;
+  outfile << mesh.nodes.size() << '\n';
   for (int i = 0; i < mesh.nodes.size(); i++) {
     outfile << i << " " << mesh.nodes[i] << '\n';
   }
@@ -112,11 +112,13 @@ static bool export_gmsh_v22_ascii(const io::Mesh & mesh, std::string filename) {
   // write elems //
   /////////////////
   outfile << "$Elements\n";
+  outfile << mesh.elements.size() << std::endl;
   for (int i = 0; i < mesh.elements.size(); i++) {
-    auto [type, tags, ids] = mesh.elements[i];
+    auto [type, ids, tags] = mesh.elements[i];
     outfile << i << " " << gmsh::element_type(type) << " " << tags.size();
     for (auto tag : tags) { outfile << " " << tag; }
     for (auto id : ids) { outfile << " " << id; }
+    outfile << '\n';
   }
   outfile << "$EndElements\n";
 
@@ -281,7 +283,6 @@ Mesh import_gmsh_v22(std::string filename) {
   }
 
   int unused;
-  std::string str;
   std::string line;
 
   /////////////////
@@ -299,16 +300,21 @@ Mesh import_gmsh_v22(std::string filename) {
   if (filetype > 1) exit_with_error("unsupported file type");
   if (datasize != 8) exit_with_error("invalid data size field");
 
-  infile >> str;
-  if (str != "$EndMeshFormat") exit_with_error("invalid file format (end header):" + line);
-
   if (filetype == 0) {
+    infile >> line;
+    if (line != "$EndMeshFormat") {
+      exit_with_error("invalid file format (end header):" + line);
+    }
     return import_gmsh_v22_ascii(infile);
   } else {
     getline(infile, line); // skip the newline
     int one;
     infile.read((char*)&one, 4);
     bool swap_bytes = (one != 1);
+    infile >> line;
+    if (line != "$EndMeshFormat") {
+      exit_with_error("invalid file format (end header):" + line);
+    }
     return import_gmsh_v22_binary(infile, swap_bytes);
   }
 
