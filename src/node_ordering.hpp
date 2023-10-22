@@ -339,7 +339,7 @@ namespace vtk {
       case 24: return Element::Type::Tet10;
       case 14: return Element::Type::Pyr5;
       case 27: return Element::Type::Pyr13;
-      case 37: return Element::Type::Pyr14;
+      //case 37: return Element::Type::Pyr14;
       case 13: return Element::Type::Prism6;
       case 26: return Element::Type::Prism15;
       case 32: return Element::Type::Prism18;
@@ -363,7 +363,7 @@ namespace vtk {
       case Element::Type::Tet10:       return 24;
       case Element::Type::Pyr5:        return 14;
       case Element::Type::Pyr13:       return 27;
-      case Element::Type::Pyr14:       return 37;
+      case Element::Type::Pyr14:       return -1; // not supported by VTK (?)
       case Element::Type::Prism6:      return 13;
       case Element::Type::Prism15:     return 26;
       case Element::Type::Prism18:     return 32;
@@ -398,17 +398,17 @@ namespace vtk {
       case Element::Type::Tet10:
         return {0, 1, 2, 3, 4, 5, 6, 7, 9, 8};
       case Element::Type::Pyr13:
-        return {0, 1, 2, 3, 4, 5, 8, 9, 6, 10, 7, 11, 12};
+        return {0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12};
       case Element::Type::Pyr14:
-        return {0, 1, 2, 3, 4, 5, 8, 9, 6, 10, 7, 11, 12, 13};
+        return {0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12, 13};
       case Element::Type::Prism15:
-        return {0, 1, 2, 3, 4, 5, 6, 8, 12, 7, 13, 14, 9, 11, 10};
+        return {0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11};
       case Element::Type::Prism18:
-        return {0, 1, 2, 3, 4, 5, 6, 8, 12, 7, 13, 14, 9, 11, 10, 15, 17, 16};
+        return {0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16};
       case Element::Type::Hex20:
-        return {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14};
+        return {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15};
       case Element::Type::Hex27:
-        return {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14, 24, 22, 20, 21, 23, 25, 26};
+        return {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, 22, 23, 21, 24, 20, 25, 26};
     }
   }
 

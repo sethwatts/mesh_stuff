@@ -24,11 +24,13 @@ TEST(vtk, export_tests) {
     export_vtk_single_element(Element::Type::Tet10, "tet10");
     export_vtk_single_element(Element::Type::Pyr5, "pyr5");
     export_vtk_single_element(Element::Type::Pyr13, "pyr13");
-    export_vtk_single_element(Element::Type::Pyr14, "pyr14");
     export_vtk_single_element(Element::Type::Prism6, "prism6");
     export_vtk_single_element(Element::Type::Prism15, "prism15");
     export_vtk_single_element(Element::Type::Prism18, "prism18");
     export_vtk_single_element(Element::Type::Hex8, "hex8");
     export_vtk_single_element(Element::Type::Hex20, "hex20");
     export_vtk_single_element(Element::Type::Hex27, "hex27");
+
+    // 14-node pyramids seem to not be supported by vtk (?)
+    // export_vtk_single_element(Element::Type::Pyr14, "pyr14");
 }

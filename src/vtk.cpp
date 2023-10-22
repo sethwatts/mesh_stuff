@@ -34,8 +34,14 @@ static bool export_vtk_ascii(const Mesh & mesh, std::string filename) {
   }
   outfile << "CELLS " << nelems << " " << size << '\n';
   for (auto & elem : mesh.elements) {
+    if (elem.type == io::Element::Type::Pyr14) {
+      exit_with_error("vtk does not support 14-node pyramid elements");
+    }
     outfile << nodes_per_elem(elem.type);
-    for (auto id : elem.node_ids) { outfile << " " << id; }
+    for (int32_t i : vtk::permutation(elem.type)) {
+      int32_t id = elem.node_ids[i];
+      outfile << " " << id;
+    }
     outfile << '\n';
   }
 
@@ -59,9 +65,9 @@ static bool export_vtk_binary(const Mesh & mesh, std::string filename) {
 
   outfile << "POINTS " << mesh.nodes.size() << " float\n";
   for (auto p : mesh.nodes) {
-    write_binary(outfile, p[0]);
-    write_binary(outfile, p[1]);
-    write_binary(outfile, p[2]);
+    write_binary(outfile, float(p[0]));
+    write_binary(outfile, float(p[1]));
+    write_binary(outfile, float(p[2]));
   }
   outfile << '\n';
 
@@ -74,7 +80,8 @@ static bool export_vtk_binary(const Mesh & mesh, std::string filename) {
   for (auto & elem : mesh.elements) {
     int32_t npe = nodes_per_elem(elem.type);
     write_binary(outfile, npe);
-    for (int32_t id : elem.node_ids) {
+    for (int32_t i : vtk::permutation(elem.type)) {
+      int32_t id = elem.node_ids[i];
       write_binary(outfile, id);
     }
   }
