@@ -1,77 +1,104 @@
 #include "mesh/io.hpp"
 
+#include "util.hpp"
+#include "node_ordering.hpp"
+
 #include <fstream>
 
-#if 0
-static constexpr uint32_t VTK_TRIANGLE = 5;
-static constexpr uint32_t VTK_TETRAHEDRON = 10;
-static constexpr uint32_t VTK_QUADRATIC_TRIANGLE = 22;
-static constexpr uint32_t VTK_QUADRATIC_TETRAHEDRON = 24;
+using io::Mesh;
+  
+template <typename T>
+void write_binary(std::ofstream &outfile, T value) {
+  T be_value = to_big_endian(value);
+  outfile.write((char*)&be_value, sizeof(T));
+}
 
-template < int dim >
-void export_vtk_impl(const SimplexMesh<dim> & mesh, std::string filename) {
+static bool export_vtk_ascii(const Mesh & mesh, std::string filename) {
 
-  bool is_quadratic = mesh.quadratic_nodes.size() > 0;
+  std::ofstream outfile(filename, std::ios::binary | std::ios::trunc);
 
-  std::ofstream outfile(filename, std::ios::binary);
-
-  // note: apparently the legacy VTK files expect big-endian for
-  //       binary format, so we'll only support ASCII here
   outfile << "# vtk DataFile Version 3.0\n";
   outfile << "--------------------------\n";
   outfile << "ASCII\n";
   outfile << "DATASET UNSTRUCTURED_GRID\n";
-  if (is_quadratic) {
-    outfile << "POINTS " << mesh.vertices.size() + mesh.quadratic_nodes.size() << " float\n";
-  } else {
-    outfile << "POINTS " << mesh.vertices.size() << " float\n";
-  }
-  for (auto p : mesh.vertices) {
-    outfile << p[0] << " " << p[1] << " " << p[2] << '\n';
-  }
-  if (is_quadratic) {
-    for (auto p : mesh.quadratic_nodes) {
-      outfile << p[0] << " " << p[1] << " " << p[2] << '\n';
-    }
+
+  outfile << "POINTS " << mesh.nodes.size() << " float\n";
+  for (auto [x, y, z] : mesh.nodes) {
+    outfile << x << " " << y << " " << z << '\n';
   }
 
   int32_t nelems = mesh.elements.size();
-  int32_t entries_per_elem;
-  if (dim == 2 && !is_quadratic) entries_per_elem = 3;
-  if (dim == 3 && !is_quadratic) entries_per_elem = 4;
-  if (dim == 2 &&  is_quadratic) entries_per_elem = 6;
-  if (dim == 3 &&  is_quadratic) entries_per_elem = 10;
-
-  outfile << "CELLS " << nelems << " " << nelems * (entries_per_elem + 1) << '\n';
-  for (int i = 0; i < mesh.elements.size(); i++) {
-    outfile << entries_per_elem;
-    for (auto id : mesh.elements[i]) { outfile << " " << id; }
-    if (is_quadratic) {
-      for (auto id : mesh.elements_quadratic_ids[i]) { outfile << " " << id + mesh.vertices.size(); }
-    }
+  int32_t size = 0;
+  for (auto & elem : mesh.elements) {
+    size += 1 + nodes_per_elem(elem.type);
+  }
+  outfile << "CELLS " << nelems << " " << size << '\n';
+  for (auto & elem : mesh.elements) {
+    outfile << nodes_per_elem(elem.type);
+    for (auto id : elem.node_ids) { outfile << " " << id; }
     outfile << '\n';
   }
 
   outfile << "CELL_TYPES " << nelems << '\n';
-  int32_t type;
-  if (dim == 2 && !is_quadratic) type = VTK_TRIANGLE;
-  if (dim == 3 && !is_quadratic) type = VTK_TETRAHEDRON;
-  if (dim == 2 &&  is_quadratic) type = VTK_QUADRATIC_TRIANGLE;
-  if (dim == 3 &&  is_quadratic) type = VTK_QUADRATIC_TETRAHEDRON;
-
-  for (auto e : mesh.elements) {
-    outfile << type << '\n';
+  for (auto & elem: mesh.elements) {
+    outfile << vtk::element_type(elem.type) << '\n';
   }
-  
   outfile.close();
 
+  return false;
 }
 
-void export_vtk(const SimplexMesh<2> & mesh, std::string filename) {
-  export_vtk_impl(mesh, filename);
+static bool export_vtk_binary(const Mesh & mesh, std::string filename) {
+
+  std::ofstream outfile(filename, std::ios::binary | std::ios::trunc);
+
+  outfile << "# vtk DataFile Version 3.0\n";
+  outfile << "--------------------------\n";
+  outfile << "BINARY\n";
+  outfile << "DATASET UNSTRUCTURED_GRID\n";
+
+  outfile << "POINTS " << mesh.nodes.size() << " float\n";
+  for (auto p : mesh.nodes) {
+    write_binary(outfile, p[0]);
+    write_binary(outfile, p[1]);
+    write_binary(outfile, p[2]);
+  }
+  outfile << '\n';
+
+  int32_t nelems = mesh.elements.size();
+  int32_t size = 0;
+  for (auto & elem : mesh.elements) {
+    size += 1 + nodes_per_elem(elem.type);
+  }
+  outfile << "CELLS " << nelems << " " << size << '\n';
+  for (auto & elem : mesh.elements) {
+    int32_t npe = nodes_per_elem(elem.type);
+    write_binary(outfile, npe);
+    for (int32_t id : elem.node_ids) {
+      write_binary(outfile, id);
+    }
+  }
+  outfile << '\n';
+  
+  outfile << "CELL_TYPES " << nelems << '\n';
+  for (auto & elem: mesh.elements) {
+    write_binary(outfile, vtk::element_type(elem.type));
+  }
+  outfile << '\n';
+
+  outfile.close();
+
+  return false;
 }
 
-void export_vtk(const SimplexMesh<3> & mesh, std::string filename) {
-  export_vtk_impl(mesh, filename);
+namespace io {
+
+bool export_vtk(const Mesh & mesh, std::string filename, FileEncoding enc) {
+  if (enc == FileEncoding::ASCII) {
+    return export_vtk_ascii(mesh, filename);
+  } else {
+    return export_vtk_binary(mesh, filename);
+  }
 }
-#endif
+
+} // namespace io

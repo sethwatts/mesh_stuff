@@ -9,7 +9,7 @@ namespace io {
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
-//            node numbering conventions consistent with gmsh                //
+//            node numbering convention (consistent with gmsh)               //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
@@ -55,10 +55,10 @@ namespace io {
 //                                                                           //
 // Tetrahedron:                          Tetrahedron10:                      //
 //                                                                           //
-//                    v                                                      //
-//                  .                                                        //
-//                ,/                                                         //
-//               /                                                           //
+//                   v                                                       //
+//                 .                                                         //
+//               ,/                                                          //
+//              /                                                            //
 //            2                                     2                        //
 //          ,/|`\                                 ,/|`\                      //
 //        ,/  |  `\                             ,/  |  `\                    //
@@ -93,7 +93,7 @@ namespace io {
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
-// Prism6:                      Prism15:               Prism18:               //
+// Prism6:                      Prism15:               Prism18:              //
 //                                                                           //
 //            w                                                              //
 //            ^                                                              //
@@ -149,9 +149,11 @@ struct Element {
     Hex8, Hex20, Hex27
   } type;
 
-  std::vector< int > tags;
   std::vector< int > node_ids;
+  std::vector< int > tags;
 };
+
+int nodes_per_elem(io::Element::Type type);
 
 struct Mesh {
   std::vector< std::array< double, 3 > > nodes;

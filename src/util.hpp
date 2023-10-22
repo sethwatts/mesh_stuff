@@ -2,13 +2,18 @@
 
 #include "mesh/io.hpp"
 
-#include <string>
+#include <cmath>
 #include <array>
 #include <tuple>
+#include <string>
 #include <fstream>
-#include <cmath>
+#include <iostream>
+#include <algorithm>
 
-void exit_with_error(std::string msg);
+inline void exit_with_error(std::string msg) {
+  std::cout << msg << std::endl;
+  exit(1);
+}
 
 template< size_t n >
 static std::array<int, n> operator-(const std::array<int, n> & a, int offset) {
@@ -64,8 +69,6 @@ std::array<T,n> ascii_read_array(std::ifstream & infile) {
   for (int i = 0; i < n; i++) infile >> out[i];
   return out;
 }  
-  
-int nodes_per_elem(io::Element::Type type);
 
 using vec3f = std::array<float, 3>;
 
@@ -105,29 +108,27 @@ inline vec3f operator+(vec3f x, vec3f y) {
 inline vec3f operator*(vec3f x, float scale) {
   return {x[0] * scale, x[1] * scale, x[2] * scale};
 }
-  
+
+inline std::vector<int> identity_permutation(int n) {
+  std::vector<int> P(n);
+  for (int i = 0; i < n; i++) { P[i] = i; }
+  return P;
+}
+
 static const bool is_big_endian = [](){
   int64_t x16 = 1;
   int32_t *x8 = reinterpret_cast<int32_t*>(&x16);
   return !*x8;
 }();
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
 
-  
-  
+template <typename T>
+T to_big_endian(T value) {
+  if (!is_big_endian) {
+    auto it = reinterpret_cast<uint8_t*>(&value);
+    std::reverse(it, it + sizeof(T)); // value is now in swapped from little to big endianness
+  }
+  return value;
+}
+
+template <typename T>
+T from_big_endian(T value) { to_big_endian(value); }

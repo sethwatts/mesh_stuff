@@ -1,6 +1,7 @@
 #include "mesh/io.hpp"
 
 #include "util.hpp"
+#include "node_ordering.hpp"
 
 #include <map>
 #include <tuple>
@@ -8,62 +9,6 @@
 #include <iostream>
 #include <map>
 #include <string>
-
-namespace gmsh {
-
-  using io::Element;
-
-  Element::Type element_type(int i){
-    switch (i) {
-      case  1: return Element::Type::Line2;
-      case  8: return Element::Type::Line3;
-      case  2: return Element::Type::Tri3;
-      case  9: return Element::Type::Tri6;
-      case  3: return Element::Type::Quad4;
-      case 16: return Element::Type::Quad8;
-      case 10: return Element::Type::Quad9;
-      case  4: return Element::Type::Tet4;
-      case 11: return Element::Type::Tet10;
-      case  7: return Element::Type::Pyr5;
-      case 19: return Element::Type::Pyr13;
-      case 14: return Element::Type::Pyr14;
-      case  6: return Element::Type::Prism6;
-      case 18: return Element::Type::Prism15;
-      case 13: return Element::Type::Prism18;
-      case  5: return Element::Type::Hex8;
-      case 17: return Element::Type::Hex20;
-      case 12: return Element::Type::Hex27;
-      default: return Element::Type::Unsupported;
-    }
-  }
-
-  int element_type(Element::Type type){
-    switch (type) {
-      case Element::Type::Line2:       return 1;
-      case Element::Type::Line3:       return 8;
-      case Element::Type::Tri3:        return 2;
-      case Element::Type::Tri6:        return 9;
-      case Element::Type::Quad4:       return 3;
-      case Element::Type::Quad8:       return 16;
-      case Element::Type::Quad9:       return 10;
-      case Element::Type::Tet4:        return 4;
-      case Element::Type::Tet10:       return 11;
-      case Element::Type::Pyr5:        return 7;
-      case Element::Type::Pyr13:       return 19;
-      case Element::Type::Pyr14:       return 14;
-      case Element::Type::Prism6:      return 6;
-      case Element::Type::Prism15:     return 18;
-      case Element::Type::Prism18:     return 13;
-      case Element::Type::Hex8:        return 5;
-      case Element::Type::Hex20:       return 17;
-      case Element::Type::Hex27:       return 12;
-      case Element::Type::Unsupported: return -1;
-    }
-  }
-
-  // no permutations necessary here, we use gmsh's numbering
-
-}
 
 static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) {
 
@@ -251,7 +196,8 @@ io::Mesh import_gmsh_v22_binary(std::ifstream & infile, bool swap_bytes) {
   auto read = [&](auto * ptr, std::streamsize size){
     infile.read((char*)ptr, size);
     if (swap_bytes) {
-
+      uint8_t * byte_ptr = reinterpret_cast<uint8_t*>(ptr);
+      std::reverse(byte_ptr, byte_ptr + sizeof(*ptr));
     }
   };
 

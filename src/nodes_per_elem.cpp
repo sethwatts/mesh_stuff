@@ -1,13 +1,6 @@
-#include "util.hpp"
+#include "mesh/io.hpp"
 
-#include <iostream>
-
-void exit_with_error(std::string msg) {
-  std::cout << msg << std::endl;
-  exit(1);
-}
-
-using io::Element;
+namespace io{
 
 int nodes_per_elem(Element::Type type){
   switch (type) {
@@ -31,4 +24,6 @@ int nodes_per_elem(Element::Type type){
     case Element::Type::Hex27:       return 27;
     case Element::Type::Unsupported: return -1;
   }
+}
+
 }
