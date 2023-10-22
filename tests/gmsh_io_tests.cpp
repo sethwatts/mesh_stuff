@@ -39,20 +39,25 @@ TEST(gmsh, big_import) {
     timer stopwatch;
     stopwatch.start();
     //Mesh mesh = import_gmsh_v22("/Users/sam/Dropbox/meshes/octane_txt.msh");
-    Mesh mesh = import_gmsh_v22("/Users/sam/Dropbox/meshes/octane_fine.msh");
+    Mesh mesh = import_gmsh_v22("/home/sam/Dropbox/meshes/octane_fine.msh");
+    //Mesh mesh = import_gmsh_v22("tet4_bin.msh");
     stopwatch.stop();
-    std::cout << stopwatch.elapsed() * 1000.0 << "ms, ";
+    std::cout << stopwatch.elapsed() * 1000.0 << "ms ";
 
     stopwatch.start();
     export_gmsh_v22(mesh, "tmp.msh", FileEncoding::ASCII);
     stopwatch.stop();
-    std::cout << stopwatch.elapsed() * 1000.0 << "ms, ";
+    std::cout << stopwatch.elapsed() * 1000.0 << "ms ";
 
     stopwatch.start();
     export_gmsh_v22(mesh, "tmp_bin.msh", FileEncoding::Binary);
     stopwatch.stop();
-    std::cout << stopwatch.elapsed() * 1000.0 << "ms";
+    std::cout << stopwatch.elapsed() * 1000.0 << "ms ";
 
+    stopwatch.start();
+    export_vtk(mesh, "tmp.vtk", FileEncoding::Binary);
+    stopwatch.stop();
+    std::cout << stopwatch.elapsed() * 1000.0 << "ms ";
 
 
 }

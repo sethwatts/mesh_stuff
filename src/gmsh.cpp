@@ -32,7 +32,8 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
   outfile << "$Nodes\n";
   outfile << mesh.nodes.size() << std::endl;
   for (int i = 0; i < mesh.nodes.size(); i++) {
-    outfile.write((char*)&i, sizeof(int));
+    int id = i + 1; // gmsh uses 1-based indexing
+    outfile.write((char*)&id, sizeof(int));
     outfile.write((char*)&mesh.nodes[i], sizeof(double) * 3); 
   }
   outfile << "$EndNodes\n";
@@ -60,18 +61,12 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
     outfile.write((char*)&block_size, sizeof(int));
     outfile.write((char*)&num_tags, sizeof(int));
     for (auto * elem : block) {
-      if (elem->tags.size() != num_tags) {
-        std::cout << "error: elements with incompatible number of tags" << std::endl;
-        return true;
-      }
-
-      if (elem->node_ids.size() != ids_per_elem) {
-        std::cout << "error: detected elements with incorrect number of node ids" << std::endl;
-        return true;
-      }
-
       outfile.write((char*)&elem->tags[0], sizeof(int) * elem->tags.size());
-      outfile.write((char*)&elem->node_ids[0], sizeof(int) * elem->node_ids.size());
+
+      // gmsh uses 1-based indexing
+      auto node_ids = elem->node_ids;
+      for (auto & id : node_ids) { id++; }
+      outfile.write((char*)&node_ids[0], sizeof(int) * node_ids.size());
     }
   }
 
@@ -169,7 +164,8 @@ io::Mesh import_gmsh_v22_ascii(std::ifstream & infile) {
   for (int i = 0; i < num_elems; i++) {
     auto [elem_id, elem_type, num_tags] = ascii_read_array<int, 3>(infile);
 
-    auto & e = mesh.elements[elem_id];
+    // note: gmsh uses 1-based indexing
+    auto & e = mesh.elements[elem_id - 1];
 
     e.type = gmsh::element_type(elem_type);
 
@@ -178,7 +174,10 @@ io::Mesh import_gmsh_v22_ascii(std::ifstream & infile) {
 
     int npe = nodes_per_elem(e.type);
     e.node_ids.resize(npe);
-    for (int j = 0; j < npe; j++) infile >> e.node_ids[j];
+    for (int j = 0; j < npe; j++) {
+      infile >> e.node_ids[j];
+      e.node_ids[j]--; // one-based to zero-based indices
+    }
 
     getline(infile, line);
   }
@@ -216,8 +215,9 @@ io::Mesh import_gmsh_v22_binary(std::ifstream & infile, bool swap_bytes) {
   mesh.nodes.resize(num_nodes);
   getline(infile, line); // skip the newline
   for (int i = 0; i < num_nodes; i++) {
-    infile.read((char*)&id, sizeof(int)); // node id field is unused
-    infile.read((char*)&mesh.nodes[id], sizeof(double) * 3);
+    // note: gmsh uses 1-based indexing
+    read((char*)&id, sizeof(int)); 
+    read((char*)&mesh.nodes[id-1], sizeof(double) * 3);
   }
 
   infile >> line;
@@ -244,17 +244,26 @@ io::Mesh import_gmsh_v22_binary(std::ifstream & infile, bool swap_bytes) {
     int npe = nodes_per_elem(type);
 
     for (int i = 0; i < block_size; i++) {
-      mesh.elements[i].tags.resize(num_tags);
-      infile.read((char*)&mesh.elements[i].tags[0], sizeof(int) * num_tags);
+      io::Element & e = mesh.elements[element_count + i];
+      e.type = type;
+      e.tags.resize(num_tags);
+      read((char*)&e.tags[0], sizeof(int) * num_tags);
 
-      mesh.elements[i].node_ids.resize(npe);
-      infile.read((char*)&mesh.elements[i].node_ids[0], sizeof(int) * npe);
+      // note: gmsh uses 1-based indexing
+      e.node_ids.resize(npe);
+      read((char*)&e.node_ids[0], sizeof(int) * npe);
+      for (auto & id : e.node_ids) { id--; }
     }
 
     element_count += block_size;
   } while (element_count < num_elems);
 
   infile >> line;
+
+  for (uint8_t c : line) {
+    std::cout << std::hex << int(c);
+  }
+  std::cout << std::endl;
   if (line != "$EndElements") exit_with_error("invalid file format (elems)");
 
   infile.close();
