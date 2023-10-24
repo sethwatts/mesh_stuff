@@ -1,70 +1,20 @@
-#include "zstr.hpp"
+#include "zlib.h"
 #include "mesh/io.hpp"
 #include "util.hpp"
 #include "base64.hpp"
 #include "node_ordering.hpp"
 
+std::vector<uint8_t> compress(const std::vector<uint8_t>& uncompressed_data) {
+  unsigned long uncompressed_bytes = uncompressed_data.size();
+  unsigned long compressed_bytes = compressBound(uncompressed_bytes);
+  std::vector<uint8_t> compressed_data(compressed_bytes); // allocate enough size for output buffer
+  int error = compress((Bytef *)&compressed_data[0], &compressed_bytes, 
+                       (Bytef *)&uncompressed_data[0], uncompressed_bytes);
+  compressed_data.resize(compressed_bytes);
+  return compressed_data;
+}
+
 namespace io {
-
-#if 1
-std::vector<uint8_t> compress(const std::vector<uint8_t>& data) {
-
-    // Create a zlib stream for compression
-    z_stream stream;
-    stream.zalloc = Z_NULL;
-    stream.zfree = Z_NULL;
-    stream.opaque = Z_NULL;
-    
-    // Initialize the stream for compression
-    if (deflateInit(&stream, Z_DEFAULT_COMPRESSION) != Z_OK) {
-        // Handle initialization error
-        // You can use stream.msg to get error details
-        return std::vector<uint8_t>();
-    }
-    
-    // Input data
-    stream.next_in = const_cast<Bytef*>(data.data());
-    stream.avail_in = data.size();
-    
-    // Create a buffer to store compressed data
-    std::vector<uint8_t> compressedData(compressBound(data.size())); // You can adjust the initial size
-    stream.next_out = compressedData.data();
-    stream.avail_out = compressedData.size();
-    
-    // Compress the data
-    int ret;
-    ret = deflate(&stream, Z_FINISH);
-    
-    // Check for compression errors
-    if (ret != Z_STREAM_END) {
-        // Handle compression error
-        // You can use stream.msg to get error details
-        deflateEnd(&stream);
-        return std::vector<uint8_t>();
-    }
-    
-    // Clean up the compression stream
-    deflateEnd(&stream);
-    
-    // Resize the compressed data to the actual size
-    compressedData.resize(stream.total_out);
-    
-    return compressedData;
-}
-#else
-std::vector<uint8_t> compress(std::vector<uint8_t> & original_data) {
-
-  std::stringbuf buffer;
-  zstr::ostream compressor{&buffer};
-
-  compressor.write((char*)&original_data, original_data.size());
-  compressor << std::flush;
-
-  auto compstr = buffer.str();
-  return std::vector<uint8_t>(compstr.begin(), compstr.end());
-
-}
-#endif
 
 template < typename T >
 void append_to_byte_array(uint8_t * & ptr, const T & data) {
