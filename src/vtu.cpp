@@ -198,7 +198,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
     uint8_t * ptr = &byte_vector[0];
     for (auto & elem : mesh.elements) {
       uint8_t vtk_id = vtk::element_type(elem.type);
-      append_to_byte_array(ptr, vtk::element_type(elem.type));
+      append_to_byte_array(ptr, vtk_id);
     }
     std::vector<uint8_t> compressed = compress(byte_vector);
     header[0] = 1;
@@ -219,9 +219,8 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
   return false;
 }
 
-
 bool export_vtu(const Mesh & mesh, std::string filename) {
-  return export_vtu_impl<double, int32_t>(mesh, filename);
+  return export_vtu_impl<float, int32_t>(mesh, filename);
 }
 
 }
