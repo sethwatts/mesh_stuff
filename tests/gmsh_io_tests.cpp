@@ -66,4 +66,3 @@ TEST(gmsh, big_import) {
     std::cout << stopwatch.elapsed() * 1000.0 << "ms ";
 
 }
-#endif

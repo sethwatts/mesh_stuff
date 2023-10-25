@@ -162,7 +162,6 @@ struct Mesh {
 
 enum class FileEncoding { ASCII, Binary };
 
-Mesh import_vtk(std::string filename);
 Mesh import_gmsh_v22(std::string filename);
 
 bool export_stl(const Mesh & mesh, std::string filename);
