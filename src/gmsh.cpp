@@ -24,7 +24,7 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
   outfile << "$MeshFormat\n";
   outfile << version << " " << filetype << " " << datasize << std::endl;
   outfile.write((char*)&one, sizeof(int)); // used for checking endianness
-  outfile << "$EndMeshFormat\n";
+  outfile << "\n$EndMeshFormat\n";
 
   /////////////////
   // write nodes //
@@ -36,7 +36,7 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
     outfile.write((char*)&id, sizeof(int));
     outfile.write((char*)&mesh.nodes[i], sizeof(double) * 3); 
   }
-  outfile << "$EndNodes\n";
+  outfile << "\n$EndNodes\n";
 
   /////////////////
   // write elems //
@@ -52,16 +52,29 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
   }
 
   // then write each block out
-  for (auto [type, block] : element_blocks) {
+  for (auto & [type, block] : element_blocks) {
     int etype = gmsh::element_type(type);
     int block_size = int(block.size());
-    int num_tags = int(block[0]->tags.size());
+
+    // gmsh requires two tags: ("physical" and "elementary")
+    // if not provided, these will be set to zero.
+    // this assumes all elements in the block have the same
+    // number of tags
+    int num_tags = std::max(int(block[0]->tags.size()), 2);
+
     int ids_per_elem = int(block[0]->node_ids.size());
     outfile.write((char*)&etype, sizeof(int));
     outfile.write((char*)&block_size, sizeof(int));
     outfile.write((char*)&num_tags, sizeof(int));
+    int count = 1; // gmsh uses 1-based indexing
     for (auto * elem : block) {
-      outfile.write((char*)&elem->tags[0], sizeof(int) * elem->tags.size());
+      outfile.write((char*)&count, sizeof(int));
+      count++;
+
+      for (int i = 0; i < num_tags; i++) {
+        int tag = (i < elem->tags.size()) ? elem->tags[i] : 0;
+        outfile.write((char*)&tag, sizeof(int));
+      }
 
       // gmsh uses 1-based indexing
       auto node_ids = elem->node_ids;
@@ -99,7 +112,7 @@ static bool export_gmsh_v22_ascii(const io::Mesh & mesh, std::string filename) {
   outfile << "$Nodes\n";
   outfile << mesh.nodes.size() << '\n';
   for (int i = 0; i < mesh.nodes.size(); i++) {
-    outfile << i << " " << mesh.nodes[i] << '\n';
+    outfile << i+1 << " " << mesh.nodes[i] << '\n';
   }
   outfile << "$EndNodes\n";
 
@@ -110,9 +123,9 @@ static bool export_gmsh_v22_ascii(const io::Mesh & mesh, std::string filename) {
   outfile << mesh.elements.size() << std::endl;
   for (int i = 0; i < mesh.elements.size(); i++) {
     auto [type, ids, tags] = mesh.elements[i];
-    outfile << i << " " << gmsh::element_type(type) << " " << tags.size();
+    outfile << i+1 << " " << gmsh::element_type(type) << " " << tags.size();
     for (auto tag : tags) { outfile << " " << tag; }
-    for (auto id : ids) { outfile << " " << id; }
+    for (auto id : ids) { outfile << " " << id+1; }
     outfile << '\n';
   }
   outfile << "$EndElements\n";
@@ -140,8 +153,8 @@ io::Mesh import_gmsh_v22_ascii(std::ifstream & infile) {
   mesh.nodes.resize(num_nodes);
 
   for (int i = 0; i < num_nodes; i++) {
-    infile >> node_id; // node id field is unused
-    mesh.nodes[i] = ascii_read_array<double,3>(infile);
+    infile >> node_id;
+    mesh.nodes[node_id - 1] = ascii_read_array<double,3>(infile);
   }
 
   infile >> line;
@@ -244,7 +257,10 @@ io::Mesh import_gmsh_v22_binary(std::ifstream & infile, bool swap_bytes) {
     int npe = nodes_per_elem(type);
 
     for (int i = 0; i < block_size; i++) {
-      io::Element & e = mesh.elements[element_count + i];
+      int elem_id;
+      read((char*)&elem_id, sizeof(int));
+
+      io::Element & e = mesh.elements[elem_id - 1];
       e.type = type;
       e.tags.resize(num_tags);
       read((char*)&e.tags[0], sizeof(int) * num_tags);
@@ -260,10 +276,6 @@ io::Mesh import_gmsh_v22_binary(std::ifstream & infile, bool swap_bytes) {
 
   infile >> line;
 
-  for (uint8_t c : line) {
-    std::cout << std::hex << int(c);
-  }
-  std::cout << std::endl;
   if (line != "$EndElements") exit_with_error("invalid file format (elems)");
 
   infile.close();

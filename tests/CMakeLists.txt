@@ -9,7 +9,7 @@ foreach(filename ${cpp_tests})
   get_filename_component(testname ${filename} NAME_WE)
 
   add_executable(${testname} ${filename})
-  target_link_libraries(${testname} PUBLIC mesh_io GTest::gtest_main)
+  target_link_libraries(${testname} PUBLIC mesh_stuff GTest::gtest_main)
 
   add_test(${testname} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${testname})		
 
