@@ -198,6 +198,92 @@ std::vector< Triangle > tessellate(Element::Type type, const vec3f * p) {
 
 namespace io {
 
+Mesh import_stl(std::string filename) {
+
+  Mesh mesh;
+
+  std::ifstream infile(filename);
+
+  if (!infile) {
+    std::cout << "error: " << filename << " not found" << std::endl;
+    exit(1);
+  }
+
+  std::string line;
+
+  /////////////////
+  // read header //
+  /////////////////
+  char header[80];
+  infile.read(header, 5);
+
+  if (std::string(header, header+5) == "solid") {
+    // ASCII format
+    getline(infile, line); // skip the rest of the first line
+
+    auto expect = [](const std::string & tok, const std::string & str) {
+      if (tok != str) {
+        std::cout << "expected '" << str << "', but got '" << tok << "'" << std::endl;
+      }
+    };
+
+    double unused;
+    int count = 0;
+    std::array< double, 3 > coords;
+
+    std::string word;
+    infile >> word;
+
+    while(word != "endsolid") {
+      expect(word, "facet"); 
+      infile >> word; expect(word, "normal");
+      infile >> unused >> unused >> unused; // discard normal values
+        infile >> word; expect(word, "outer"); 
+        infile >> word; expect(word, "loop");
+          infile >> word; expect(word, "vertex");
+          infile >> coords[0] >> coords[1] >> coords[2];
+          mesh.nodes.push_back(coords);
+          infile >> word; expect(word, "vertex");
+          infile >> coords[0] >> coords[1] >> coords[2];
+          mesh.nodes.push_back(coords);
+          infile >> word; expect(word, "vertex");
+          infile >> coords[0] >> coords[1] >> coords[2];
+          mesh.nodes.push_back(coords);
+          mesh.elements.push_back({Element::Type::Tri3, {count, count+1, count+2}, {}});
+          count += 3;
+        infile >> word; expect(word, "endloop");
+      infile >> word; expect(word, "endfacet");
+      infile >> word;
+    }
+
+  } else {
+    // binary format
+    infile.read(header+5, 75); // skip the rest of the 80-byte header
+
+    int num_triangles;
+    infile.read((char*)&num_triangles, sizeof(int));
+
+    vec3f normal;
+    vec3f v[3];
+    uint16_t attributes;
+    for (int i = 0; i < num_triangles; i++) {
+      infile.read((char *)&normal, sizeof(vec3f)); // unused
+      infile.read((char *)&v[0],   sizeof(vec3f));
+      infile.read((char *)&v[1],   sizeof(vec3f));
+      infile.read((char *)&v[2],   sizeof(vec3f));
+      infile.read((char *)&attributes, 2); // unused
+
+      mesh.nodes.push_back({v[0][0], v[0][1], v[0][2]});
+      mesh.nodes.push_back({v[1][0], v[1][1], v[1][2]});
+      mesh.nodes.push_back({v[2][0], v[2][1], v[2][2]});
+      mesh.elements.push_back({Element::Type::Tri3, {3*i, 3*i+1, 3*i+2}, {}});
+    }
+  }
+
+  return mesh;
+
+}
+
 bool export_stl(const Mesh & mesh, std::string filename) {
 
   std::ofstream outfile(filename, std::ios::binary);
