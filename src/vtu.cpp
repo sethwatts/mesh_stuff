@@ -4,6 +4,8 @@
 #include "base64.hpp"
 #include "node_ordering.hpp"
 
+#include <cstring>
+
 std::vector<uint8_t> compress(const std::vector<uint8_t>& uncompressed_data) {
   unsigned long uncompressed_bytes = uncompressed_data.size();
   unsigned long compressed_bytes = compressBound(uncompressed_bytes);
