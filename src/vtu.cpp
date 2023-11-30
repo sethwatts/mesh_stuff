@@ -5,6 +5,7 @@
 #include "node_ordering.hpp"
 
 #include <cstring>
+#include <iostream>
 
 std::vector<uint8_t> compress(const std::vector<uint8_t>& uncompressed_data) {
   unsigned long uncompressed_bytes = uncompressed_data.size();
@@ -12,6 +13,9 @@ std::vector<uint8_t> compress(const std::vector<uint8_t>& uncompressed_data) {
   std::vector<uint8_t> compressed_data(compressed_bytes); // allocate enough size for output buffer
   int error = compress((Bytef *)&compressed_data[0], &compressed_bytes, 
                        (Bytef *)&uncompressed_data[0], uncompressed_bytes);
+  if (error) {
+    std::cout << "zlib error while compressing: " << error << std::endl;
+  } 
   compressed_data.resize(compressed_bytes);
   return compressed_data;
 }
