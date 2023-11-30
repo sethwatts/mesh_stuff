@@ -69,6 +69,7 @@ int triangles_per_element(Element::Type type){
     case Element::Type::Hex27:       return 0;
     case Element::Type::Unsupported: return -1;
   }
+  return -1;
 }
 
 using Triangle = std::array<vec3f, 3>;

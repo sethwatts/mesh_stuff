@@ -184,6 +184,7 @@ namespace gmsh {
       case Element::Type::Hex27:       return 12;
       case Element::Type::Unsupported: return -1;
     }
+    return -1;
   }
 
   // no permutations necessary here, we use gmsh's numbering
@@ -372,6 +373,7 @@ namespace vtk {
       case Element::Type::Hex27:       return 29;
       case Element::Type::Unsupported: return -1;
     }
+    return -1;
   }
 
   inline std::vector<int> permutation(Element::Type type) {
@@ -410,6 +412,8 @@ namespace vtk {
       case Element::Type::Hex27:
         return {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, 22, 23, 21, 24, 20, 25, 26};
     }
+
+    return {};
   }
 
 }

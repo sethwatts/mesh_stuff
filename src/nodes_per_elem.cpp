@@ -24,6 +24,7 @@ int nodes_per_elem(Element::Type type){
     case Element::Type::Hex27:       return 27;
     case Element::Type::Unsupported: return -1;
   }
+  return -1;
 }
 
 }
