@@ -62,7 +62,6 @@ static bool export_gmsh_v22_binary(const io::Mesh & mesh, std::string filename) 
     // number of tags
     int num_tags = std::max(int(block[0]->tags.size()), 2);
 
-    int ids_per_elem = int(block[0]->node_ids.size());
     outfile.write((char*)&etype, sizeof(int));
     outfile.write((char*)&block_size, sizeof(int));
     outfile.write((char*)&num_tags, sizeof(int));
@@ -101,7 +100,6 @@ static bool export_gmsh_v22_ascii(const io::Mesh & mesh, std::string filename) {
   const double version = 2.2;
   const int filetype = 0; // denotes ascii encoding
   const int datasize = 8;
-  const int one = 1;
   outfile << "$MeshFormat\n";
   outfile << version << " " << filetype << " " << datasize << '\n';
   outfile << "$EndMeshFormat\n";
@@ -303,7 +301,6 @@ Mesh import_gmsh_v22(std::string filename) {
     exit(1);
   }
 
-  int unused;
   std::string line;
 
   /////////////////
