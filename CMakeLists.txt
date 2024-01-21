@@ -10,17 +10,17 @@ add_library(mesh_stuff ${cpp_sources})
 target_include_directories(mesh_stuff PUBLIC ${PROJECT_SOURCE_DIR}/inc)
 
 find_package(ZLIB 1.2.3) # defines imported target ZLIB::ZLIB
-if (ZLIB_FOUND) 
-  target_link_libraries(mesh_stuff PUBLIC ZLIB::ZLIB)
-else()
+if (NOT ZLIB_FOUND) 
   include(FetchContent)
   FetchContent_Declare(
     zlib
     URL https://github.com/madler/zlib/releases/download/v1.3/zlib-1.3.tar.gz
   )
   FetchContent_MakeAvailable(zlib)
-  target_link_libraries(mesh_stuff PUBLIC zlib)
+  add_library(ZLIB::ZLIB ALIAS zlibstatic)
+  target_include_directories(zlibstatic INTERFACE ${zlib_BINARY_DIR} ${zlib_SOURCE_DIR})
 endif()
+target_link_libraries(mesh_stuff PUBLIC ZLIB::ZLIB)
 
 include(FetchContent)
 include(ExternalProject)
