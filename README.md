@@ -21,8 +21,6 @@ Building the library and its dependencies
 
 2. Configure with `cmake`
 
-with no OpenGL stuff enabled
-
 `cd path/to/mesh_stuff && cmake . -Bbuild`
 
 ---------
