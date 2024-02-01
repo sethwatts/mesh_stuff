@@ -54,27 +54,58 @@ std::vector< new_type > convert(const std::vector< old_type > & old_data) {
   return new_data;
 }
 
+// although not documented in VTK's official .vtu, spec, following <https://itk.org/Wiki/VTK_XML_Formats>,
+// the binary data header is formatted as:
+//     [#blocks][#u-size][#p-size][#c-size-1][#c-size-2]...[#c-size-#blocks][DATA]
+// where each token is an integer value whose type is specified by the field  "header_type" at the top of the file
+// (UInt32 if no type specified), and where the token values are:
+//     [#blocks] = Number of blocks
+//     [#u-size] = Block size before compression
+//     [#p-size] = Size of last partial block (zero if it not needed)
+//     [#c-size-i] = Size in bytes of block i after compression
+// Once the data is compressed and the header is generated, the data can be written as
+//     output << Base64::encode(header) << Base64::encode(compress(data_1)) << Base64::encode(compress(data_2)) ...
+template < typename header_int_t >
+void write_compressed_data(const std::vector<uint8_t> &data_bytes,
+                           std::ofstream &outfile,
+                           std::size_t block_size_in_MB = 4)
+{
+  header_int_t total_bytes = data_bytes.size();
+  header_int_t bytes_per_block = block_size_in_MB * 1048576u;
+  header_int_t size_of_last_block = total_bytes % bytes_per_block;
+  header_int_t number_of_blocks = total_bytes / bytes_per_block + 1 * (size_of_last_block > 0);
+
+  std::vector<uint8_t> header_bytes((3 + number_of_blocks) * sizeof(header_int_t));
+  header_int_t * header = (header_int_t *)&header_bytes[0];
+  header[0] = number_of_blocks;
+  header[1] = bytes_per_block;
+  header[2] = size_of_last_block;
+
+  std::vector<std::vector<uint8_t>> compressed_bytes(number_of_blocks);
+
+  for (header_int_t i = 0; i < number_of_blocks; ++i) {
+    header_int_t block_size = (i == number_of_blocks - 1) ? size_of_last_block : bytes_per_block;
+    std::vector<uint8_t>::const_iterator start = data_bytes.begin() + i * bytes_per_block;
+    std::vector<uint8_t>::const_iterator stop  = start + block_size;
+    std::vector<uint8_t> block_vector(start, stop);
+    compressed_bytes[i] = compress(block_vector);
+    header[3+i] = compressed_bytes[i].size();
+  }
+
+  outfile << Base64::Encode(header_bytes);
+  for (const auto &compressed : compressed_bytes) {
+    outfile << Base64::Encode(compressed);
+  }
+  outfile << '\n';
+}
+
 std::string type_name(uint32_t) { return "UInt32"; }
 std::string type_name(int32_t) { return "Int32"; }
 std::string type_name(float) { return "Float32"; }
 std::string type_name(double) { return "Float64"; }
 
-template < typename float_t, typename int_t >
-bool export_vtu_impl(const Mesh & mesh, std::string filename) {
-
-  // binary data header is undocumented in VTK's official .vtu spec?
-  // apparently for a single block of compressed data, these are the
-  // appropriate values for the header:
-  //
-  // data = {...};
-  // header[0] = 1;
-  // header[1] = data.size();
-  // header[2] = data.size();
-  // header[3] = compress(data).size();
-  //
-  // output << Base64::encode(header) << Base64::encode(compress(data));
-  std::vector<uint8_t> header_bytes(16);
-  uint32_t * header = (uint32_t *)&header_bytes[0];
+template < typename float_t, typename int_t, typename header_int_t = uint32_t >
+bool export_vtu_impl(const Mesh & mesh, std::string filename, std::size_t block_size_in_MB = 4) {
 
   int_t num_nodes = int_t(mesh.nodes.size());
   int_t num_elements = int_t(mesh.elements.size());
@@ -83,7 +114,8 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
 
   outfile << "<?xml version=\"1.0\"?>\n";
   std::string byte_order = is_big_endian ? "BigEndian" : "LittleEndian";
-  outfile << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << byte_order << "\" compressor=\"vtkZLibDataCompressor\">\n"; // TODO compressor
+  outfile << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << byte_order
+          << "\" compressor=\"vtkZLibDataCompressor\" header_type=\"" << type_name(header_int_t{}) << "\">\n";
   outfile << "<UnstructuredGrid>\n";
   outfile << "<Piece NumberOfPoints=\"" << mesh.nodes.size() << "\" NumberOfCells=\"" << mesh.elements.size() << "\">\n";
 
@@ -94,12 +126,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
     std::vector<uint8_t> byte_vector(data_bytes);
     uint8_t * ptr = &byte_vector[0];
     append_to_byte_array(ptr, convert< float_t >(mesh.nodes));
-    std::vector<uint8_t> compressed = compress(byte_vector);
-    header[0] = 1;
-    header[1] = byte_vector.size();
-    header[2] = byte_vector.size();
-    header[3] = compressed.size();
-    outfile << Base64::Encode(header_bytes) << Base64::Encode(compressed) << '\n';
+    write_compressed_data<header_int_t>(byte_vector, outfile);
   }
   outfile << "</DataArray>\n";
   outfile << "</Points>\n";
@@ -119,12 +146,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
         append_to_byte_array(ptr, id);
       }
     }
-    std::vector<uint8_t> compressed = compress(byte_vector);
-    header[0] = 1;
-    header[1] = byte_vector.size();
-    header[2] = byte_vector.size();
-    header[3] = compressed.size();
-    outfile << Base64::Encode(header_bytes) << Base64::Encode(compressed) << '\n';
+    write_compressed_data<header_int_t>(byte_vector, outfile);
   }
   outfile << "</DataArray>\n";
 
@@ -138,12 +160,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
       offset += nodes_per_elem(elem.type);
       append_to_byte_array(ptr, offset);
     }
-    std::vector<uint8_t> compressed = compress(byte_vector);
-    header[0] = 1;
-    header[1] = byte_vector.size();
-    header[2] = byte_vector.size();
-    header[3] = compressed.size();
-    outfile << Base64::Encode(header_bytes) << Base64::Encode(compressed) << '\n';
+    write_compressed_data<header_int_t>(byte_vector, outfile);
   }
   outfile << "</DataArray>\n";
 
@@ -156,12 +173,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
       uint8_t vtk_id = vtk::element_type(elem.type);
       append_to_byte_array(ptr, vtk_id);
     }
-    std::vector<uint8_t> compressed = compress(byte_vector);
-    header[0] = 1;
-    header[1] = byte_vector.size();
-    header[2] = byte_vector.size();
-    header[3] = compressed.size();
-    outfile << Base64::Encode(header_bytes) << Base64::Encode(compressed) << '\n';
+    write_compressed_data<header_int_t>(byte_vector, outfile);
   }
   outfile << "</DataArray>\n";
   outfile << "</Cells>\n";
@@ -176,7 +188,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename) {
 }
 
 bool export_vtu(const Mesh & mesh, std::string filename) {
-  return export_vtu_impl<float, int32_t>(mesh, filename);
+  return export_vtu_impl<float, int32_t, uint32_t>(mesh, filename, 4);
 }
 
 }
