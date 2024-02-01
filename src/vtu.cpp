@@ -72,8 +72,16 @@ void write_compressed_data(const std::vector<uint8_t> &data_bytes,
 {
   header_int_t total_bytes = data_bytes.size();
   header_int_t bytes_per_block = block_size_in_MB * 1048576u;
-  header_int_t size_of_last_block = total_bytes % bytes_per_block;
-  header_int_t number_of_blocks = total_bytes / bytes_per_block + 1 * (size_of_last_block > 0);
+  header_int_t remainder = total_bytes % bytes_per_block;
+  header_int_t quotient = total_bytes / bytes_per_block;
+  header_int_t size_of_last_block, number_of_blocks;
+  if (remainder == 0) {
+    number_of_blocks = quotient;
+    size_of_last_block = bytes_per_block;
+  } else {
+    number_of_blocks = quotient + 1;
+    size_of_last_block = remainder;
+  }
 
   std::vector<uint8_t> header_bytes((3 + number_of_blocks) * sizeof(header_int_t));
   header_int_t * header = (header_int_t *)&header_bytes[0];
@@ -126,7 +134,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename, std::size_t block_
     std::vector<uint8_t> byte_vector(data_bytes);
     uint8_t * ptr = &byte_vector[0];
     append_to_byte_array(ptr, convert< float_t >(mesh.nodes));
-    write_compressed_data<header_int_t>(byte_vector, outfile);
+    write_compressed_data<header_int_t>(byte_vector, outfile, block_size_in_MB);
   }
   outfile << "</DataArray>\n";
   outfile << "</Points>\n";
@@ -146,7 +154,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename, std::size_t block_
         append_to_byte_array(ptr, id);
       }
     }
-    write_compressed_data<header_int_t>(byte_vector, outfile);
+    write_compressed_data<header_int_t>(byte_vector, outfile, block_size_in_MB);
   }
   outfile << "</DataArray>\n";
 
@@ -160,7 +168,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename, std::size_t block_
       offset += nodes_per_elem(elem.type);
       append_to_byte_array(ptr, offset);
     }
-    write_compressed_data<header_int_t>(byte_vector, outfile);
+    write_compressed_data<header_int_t>(byte_vector, outfile, block_size_in_MB);
   }
   outfile << "</DataArray>\n";
 
@@ -173,7 +181,7 @@ bool export_vtu_impl(const Mesh & mesh, std::string filename, std::size_t block_
       uint8_t vtk_id = vtk::element_type(elem.type);
       append_to_byte_array(ptr, vtk_id);
     }
-    write_compressed_data<header_int_t>(byte_vector, outfile);
+    write_compressed_data<header_int_t>(byte_vector, outfile, block_size_in_MB);
   }
   outfile << "</DataArray>\n";
   outfile << "</Cells>\n";
