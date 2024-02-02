@@ -33,3 +33,37 @@ TEST(vtu, export_tests) {
     // 14-node pyramids seem to not be supported by vtu (?)
     // export_vtu_single_element(Element::Type::Pyr14, "pyr14");
 }
+
+inline std::vector<int> range(int i, int j) {
+    std::vector<int> values;
+    for (; i < j; ++i) { values.push_back(i); }
+    return values;
+}
+
+// Create a mesh large enough that more than one 4MB block is compressed. For simplicity, elements have no connectivity
+// with other elements, so connectivity data and node location data have equal size for default int32 and float types.
+TEST(vtu, multi_block_compression) {
+
+    struct TestCase {
+        Element::Type type;
+        int num_elements; // choose such that connectivity and node location data are > 4MB
+        std::string name;
+    };
+    std::vector<TestCase> TEST_SET { {Element::Type::Tet4, 275000, "tet4_multiblock"},
+                                     {Element::Type::Tet10, 125000, "tet10_multiblock"} };
+
+    for (const TestCase &tc : TEST_SET) {
+
+        const int n = nodes_per_elem(tc.type);
+        std::vector<vec3> node_locations(n * tc.num_elements);
+        std::vector<Element> element_definitions(tc.num_elements);
+
+        for (int i = 0; i < tc.num_elements; ++i) {
+            for (int j = 0; j < n; ++j) {
+                node_locations[n*i+j] = tetrahedron_nodes[j]; // NOTE hard-coding to only tet elements
+            }
+            element_definitions[i] = Element{tc.type, range(n*i, n*(i+1))};
+        }
+        export_vtu(Mesh{node_locations, element_definitions}, tc.name+".vtu");
+    }
+}
