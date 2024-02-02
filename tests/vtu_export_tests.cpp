@@ -40,8 +40,8 @@ inline std::vector<int> range(int i, int j) {
     return values;
 }
 
-// Create a mesh large enough that more than one 4MB block is compressed. For simplicity, elements have no connectivity
-// with other elements, so connectivity data and node location data have equal size for default int32 and float types.
+// Create a mesh large enough that more than one 4MB block is compressed.
+// For simplicity, elements have no connectivity with other elements.
 TEST(vtu, multi_block_compression) {
 
     struct TestCase {
@@ -49,7 +49,7 @@ TEST(vtu, multi_block_compression) {
         int num_elements; // choose such that connectivity and node location data are > 4MB
         std::string name;
     };
-    std::vector<TestCase> TEST_SET { {Element::Type::Tet4, 275000, "tet4_multiblock"},
+    std::vector<TestCase> TEST_SET { {Element::Type::Tet4, 2750000, "tet4_multiblock"},
                                      {Element::Type::Tet10, 125000, "tet10_multiblock"} };
 
     for (const TestCase &tc : TEST_SET) {

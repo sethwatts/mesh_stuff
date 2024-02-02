@@ -74,14 +74,8 @@ void write_compressed_data(const std::vector<uint8_t> &data_bytes,
   header_int_t bytes_per_block = block_size_in_MB * 1048576u;
   header_int_t remainder = total_bytes % bytes_per_block;
   header_int_t quotient = total_bytes / bytes_per_block;
-  header_int_t size_of_last_block, number_of_blocks;
-  if (remainder == 0) {
-    number_of_blocks = quotient;
-    size_of_last_block = bytes_per_block;
-  } else {
-    number_of_blocks = quotient + 1;
-    size_of_last_block = remainder;
-  }
+  header_int_t number_of_blocks = quotient + 1;
+  header_int_t size_of_last_block = remainder;
 
   std::vector<uint8_t> header_bytes((3 + number_of_blocks) * sizeof(header_int_t));
   header_int_t * header = (header_int_t *)&header_bytes[0];
